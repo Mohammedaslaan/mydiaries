@@ -13,7 +13,7 @@ public class IndexServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         request.setAttribute("viewFile", "index.jsp");
-        request.setAttribute("pageTitle", "Welcome to my page guys");
+        request.setAttribute("pageTitle", "Welcome to my page  guys");
         request.setAttribute("diaryList", Helper.diaryRepository().getAll());
         request.setAttribute("userList", Helper.userRepository().getAll());
         Helper.view(request, response);
