@@ -1,0 +1,16 @@
+version: 0.0
+os: linux
+files:
+  - source: /target/java-jsp-diary.war
+    destination: /opt/tomcat/latest/webapps/ROOT.war
+  
+hooks:
+  ApplicationStop:
+    - location: stop-tomcat
+      timeout: 600
+  BeforeInstall:
+    - location: install-tomcat
+      timeout: 600
+  ApplicationStart:
+    - location: start-tomcat
+      timeout: 600

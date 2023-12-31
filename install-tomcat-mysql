@@ -1,0 +1,77 @@
+#!/bin/bash
+
+echo "Updating system and installing OpenJDK 11..."
+sudo apt update
+sudo apt install -y openjdk-11-jdk
+
+echo "Creating tomcat user and directory..."
+sudo useradd -m -U -d /opt/tomcat -s /bin/false tomcat
+
+echo "Downloading and extracting Tomcat..."
+VERSION=9.0.84
+wget https://downloads.apache.org/tomcat/tomcat-9/v${VERSION}/bin/apache-tomcat-${VERSION}.tar.gz
+sudo tar -xf apache-tomcat-${VERSION}.tar.gz -C /opt/tomcat/
+
+echo "Creating symbolic link..."
+sudo ln -s /opt/tomcat/apache-tomcat-${VERSION} /opt/tomcat/latest
+
+echo "Setting ownership..."
+sudo chown -R tomcat: /opt/tomcat
+
+echo "Setting execute permissions..."
+sudo find /opt/tomcat/latest/bin -type f -name "*.sh" -exec chmod +x {} \;
+
+echo "Creating Tomcat systemd service file..."
+sudo tee /etc/systemd/system/tomcat.service > /dev/null <<EOL
+[Unit]
+Description=Tomcat 9 servlet container
+After=network.target
+
+[Service]
+Type=forking
+User=tomcat
+Group=tomcat
+Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
+Environment="JAVA_OPTS=-Djava.security.egd=file:///dev/urandom -Djava.awt.headless=true"
+Environment="CATALINA_BASE=/opt/tomcat/latest"
+Environment="CATALINA_HOME=/opt/tomcat/latest"
+Environment="CATALINA_PID=/opt/tomcat/latest/temp/tomcat.pid"
+Environment="CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC"
+ExecStart=/opt/tomcat/latest/bin/startup.sh
+ExecStop=/opt/tomcat/latest/bin/shutdown.sh
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+echo "Reloading systemd..."
+sudo systemctl daemon-reload
+
+echo "Enabling and starting Tomcat service..."
+sudo systemctl enable --now tomcat
+
+echo "Configuring Tomcat users..."
+echo '<?xml version="1.0" encoding="UTF-8"?>' | sudo tee /opt/tomcat/latest/conf/tomcat-users.xml > /dev/null
+echo '<tomcat-users xmlns="http://tomcat.apache.org/xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://tomcat.apache.org/xml tomcat-users.xsd" version="1.0">' | sudo tee -a /opt/tomcat/latest/conf/tomcat-users.xml > /dev/null
+echo '<role rolename="manager-gui"/>' | sudo tee -a /opt/tomcat/latest/conf/tomcat-users.xml > /dev/null
+echo '<user username="admin" password="admin" roles="manager-gui,manager-script,manager-jmx,manager-status"/>' | sudo tee -a /opt/tomcat/latest/conf/tomcat-users.xml > /dev/null
+echo '</tomcat-users>' | sudo tee -a /opt/tomcat/latest/conf/tomcat-users.xml > /dev/null
+
+
+sudo systemctl restart tomcat
+
+
+
+sudo apt install -y mysql-server 
+
+echo -e "[client]\nuser=root\npassword=root12345" > ~/.my.cnf
+chmod 600 ~/.my.cnf
+
+# Set the MySQL password for the current session
+export MYSQL_PWD='root12345'
+
+git clone https://github.com/Mohammedaslaan/mydiaries.git
+cd mydiaries/
+# Run the MySQL command to execute the SQL script
+# mysql -h $1 -P 3306 -u admin < db_table.sql
+mysql -h ${HOST} -u root --ssl-mode=DISABLED < db_table.sql
